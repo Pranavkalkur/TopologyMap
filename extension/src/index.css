@@ -1,0 +1,90 @@
+/*
+ * TopologyMap — Global Styles
+ * ============================
+ * Tailwind v4 CSS-first configuration.
+ * Design system: Biophilic / Glassmorphic / Strict Monochrome.
+ */
+
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Design Tokens (CSS Custom Properties)
+ * Strictly Black-and-White palette with glassmorphic opacity layers.
+ * Zero neon. Zero harsh primaries.
+ * -------------------------------------------------------------------------*/
+@theme {
+  /* ── Core Palette ─────────────────────────────────────── */
+  --color-canvas: #ffffff;
+  --color-ink: #0a0a0a;
+  --color-ink-muted: #6b6b6b;
+  --color-ink-faint: #a3a3a3;
+
+  /* ── Glass Layers ─────────────────────────────────────── */
+  --color-glass: rgba(255, 255, 255, 0.72);
+  --color-glass-border: rgba(255, 255, 255, 0.18);
+  --color-glass-hover: rgba(255, 255, 255, 0.85);
+
+  /* ── Surface & Depth ──────────────────────────────────── */
+  --color-overcast: rgba(0, 0, 0, 0.03);
+  --color-surface: #fafafa;
+  --color-divider: rgba(0, 0, 0, 0.06);
+
+  /* ── Semantic Status (desaturated, no neon) ────────────── */
+  --color-status-warn: #292929;
+  --color-status-error: #1a1a1a;
+
+  /* ── Organic Border Radii ─────────────────────────────── */
+  --radius-organic: 32px;
+  --radius-pill: 9999px;
+  --radius-soft: 16px;
+  --radius-subtle: 8px;
+
+  /* ── Typography ───────────────────────────────────────── */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* ── Easing Curves (biophilic organic motion) ──────────── */
+  --ease-organic: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-breathe: cubic-bezier(0.37, 0, 0.63, 1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Base Resets
+ * -------------------------------------------------------------------------*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  min-height: 100vh;
+  overflow: hidden; /* Side panel should not scroll the body */
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------------------------------------------------------------------
+ * Utility: Glassmorphism Panel
+ * -------------------------------------------------------------------------*/
+.glass-panel {
+  background: var(--color-glass);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-organic);
+}
