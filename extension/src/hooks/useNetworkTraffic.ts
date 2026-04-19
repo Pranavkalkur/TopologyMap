@@ -10,7 +10,7 @@
  *   the connection with exponential backoff so the UI never silently loses data.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { InterceptedRequest, DomainCluster } from '../types';
 
 const PORT_NAME = 'topology-panel';
@@ -41,8 +41,10 @@ export const useNetworkTraffic = () => {
         totalLatency: 0,
         avgLatency: 0,
         isUnsecured: false,
+        isTracker: false,
         errors: 0,
         lastUpdated: 0,
+        parentCompany: req.parentCompany,
       };
 
       const isError =
@@ -58,8 +60,10 @@ export const useNetworkTraffic = () => {
         totalLatency: newTotal,
         avgLatency: Math.round(newTotal / newCount),
         isUnsecured: existing.isUnsecured || req.isUnsecured,
+        isTracker: existing.isTracker || req.isTracker,
         errors: existing.errors + (isError ? 1 : 0),
         lastUpdated: req.timestamp,
+        parentCompany: existing.parentCompany || req.parentCompany,
       });
 
       return next;
@@ -130,5 +134,27 @@ export const useNetworkTraffic = () => {
     };
   }, [connect]);
 
-  return { clusters, totalRequests, isConnected, clearTraffic };
+  // Phase 3: State Aggregation (Math) for Corporate Footprint
+  const corporateStats = useMemo(() => {
+    let totalTrackerRequests = 0;
+    const rawCounts: Record<string, number> = {};
+
+    for (const cluster of clusters.values()) {
+      if (cluster.isTracker) {
+        totalTrackerRequests += cluster.requestCount;
+        const companyName = cluster.parentCompany || 'Other Trackers';
+        rawCounts[companyName] = (rawCounts[companyName] || 0) + cluster.requestCount;
+      }
+    }
+
+    const statsArray = Object.entries(rawCounts).map(([company, count]) => ({
+      company,
+      count,
+      percentage: totalTrackerRequests > 0 ? Math.round((count / totalTrackerRequests) * 100) : 0
+    }));
+
+    return statsArray.sort((a, b) => b.count - a.count);
+  }, [clusters]);
+
+  return { clusters, totalRequests, isConnected, clearTraffic, corporateStats };
 };

@@ -14,6 +14,9 @@ export interface InterceptedRequest {
   statusCode?: number;
   timestamp: number;
   isUnsecured: boolean;
+  isTracker: boolean;
+  serverCoords?: [number, number];
+  parentCompany?: string;
 }
 
 export interface DomainCluster {
@@ -24,4 +27,6 @@ export interface DomainCluster {
   isUnsecured: boolean;
   errors: number;
   lastUpdated: number;
+  isTracker: boolean;
+  parentCompany?: string;
 }

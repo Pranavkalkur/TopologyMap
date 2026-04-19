@@ -27,10 +27,14 @@ import { Activity, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useNetworkTraffic } from './hooks/useNetworkTraffic';
 import { buildGraphElements } from './graph/graphUtils';
 import DomainNode from './graph/DomainNode';
+import LiquidEdge from './graph/LiquidEdge';
 import NodeTooltip from './components/NodeTooltip';
+import GeoMap from './components/GeoMap';
+import CorporateFootprint from './components/CorporateFootprint';
 import type { NodeData } from './graph/graphUtils';
 
 const nodeTypes = { domainNode: DomainNode };
+const edgeTypes = { liquid: LiquidEdge };
 
 // ─── Design tokens (inline — avoids Tailwind purge issues with ReactFlow) ──
 const T = {
@@ -46,7 +50,7 @@ const T = {
 };
 
 export default function App() {
-  const { clusters, totalRequests, isConnected, clearTraffic } = useNetworkTraffic();
+  const { clusters, totalRequests, isConnected, clearTraffic, corporateStats } = useNetworkTraffic();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
@@ -54,6 +58,8 @@ export default function App() {
 
   // Pulse animation trigger on new intercept
   const [pulse, setPulse] = useState(false);
+  const [viewMode, setViewMode] = useState<'topology' | 'geo'>('topology');
+
   useEffect(() => {
     if (totalRequests > prevCount) {
       setPulse(true);
@@ -126,6 +132,37 @@ export default function App() {
           </div>
         </div>
 
+        {/* ── View Toggle ─────────────────────────────────── */}
+        {!isEmpty && (
+          <div style={{ 
+            display: 'flex', background: 'rgba(0,0,0,0.05)', 
+            borderRadius: 999, padding: 3, gap: 2, marginRight: 6 
+          }}>
+            <button 
+              onClick={() => setViewMode('topology')} 
+              style={{
+                border: 'none', background: viewMode === 'topology' ? '#fff' : 'transparent',
+                boxShadow: viewMode === 'topology' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                padding: '3px 10px', borderRadius: 999, fontSize: 9.5, fontWeight: 550,
+                color: viewMode === 'topology' ? '#0a0a0a' : '#6b6b6b', cursor: 'pointer',
+                transition: 'all 0.25s cubic-bezier(0.25,1,0.5,1)'
+              }}>
+              Nodes
+            </button>
+            <button 
+              onClick={() => setViewMode('geo')} 
+              style={{
+                border: 'none', background: viewMode === 'geo' ? '#fff' : 'transparent',
+                boxShadow: viewMode === 'geo' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                padding: '3px 10px', borderRadius: 999, fontSize: 9.5, fontWeight: 550,
+                color: viewMode === 'geo' ? '#0a0a0a' : '#6b6b6b', cursor: 'pointer',
+                transition: 'all 0.25s cubic-bezier(0.25,1,0.5,1)'
+              }}>
+              Globe
+            </button>
+          </div>
+        )}
+
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           {!isEmpty && (
@@ -194,6 +231,9 @@ export default function App() {
               )}
             </div>
           </div>
+        ) : viewMode === 'geo' ? (
+          // ── Geospatial Map Canvas ────────────────────────
+          <GeoMap />
         ) : (
           // ── React Flow Canvas ──────────────────────────
           <ReactFlow
@@ -204,6 +244,7 @@ export default function App() {
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
             fitViewOptions={{ padding: 0.35 }}
             minZoom={0.35}
@@ -232,6 +273,11 @@ export default function App() {
             <GlassPill>{clusters.size} cluster{clusters.size !== 1 ? 's' : ''}</GlassPill>
             <GlassPill animate={pulse}>{totalRequests.toLocaleString()} req</GlassPill>
           </div>
+        )}
+
+        {/* ── Corporate Footprint ─────────────────────────── */}
+        {!isEmpty && (
+          <CorporateFootprint stats={corporateStats} />
         )}
 
         {/* ── Node Detail Tooltip ─────────────────────────── */}
@@ -349,6 +395,14 @@ function GlobalStyles() {
         from { opacity: 0; }
         to   { opacity: 1; }
       }
+      @keyframes bottleneckWobble {
+        0%   { transform: translateY(0); }
+        50%  { transform: translateY(3px); }
+        100% { transform: translateY(-3px); }
+      }
+      @keyframes highContrastPulse {
+        to { stroke-dashoffset: -20; }
+      }
 
       /* ── React Flow overrides ────────────── */
       .react-flow__pane { cursor: default !important; }
@@ -361,6 +415,19 @@ function GlobalStyles() {
       }
       .react-flow__edge-path {
         transition: stroke-opacity 0.3s ease, stroke-width 0.3s ease;
+      }
+      .liquid-edge {
+        stroke: rgba(0,0,0,0.15);
+        transition: stroke 0.35s ease;
+      }
+      .bottleneck-wobble {
+        stroke: rgba(217, 119, 6, 0.65) !important; /* Amber for slow latency */
+        animation: bottleneckWobble 1.6s ease-in-out infinite alternate;
+      }
+      .high-contrast-pulse {
+        stroke: rgba(239, 68, 68, 0.85) !important; /* Red for unsecured */
+        stroke-dasharray: 6 5;
+        animation: highContrastPulse 0.8s linear infinite;
       }
 
       /* ── Icon button hover ───────────────── */

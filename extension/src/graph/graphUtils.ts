@@ -13,6 +13,7 @@
 
 import type { Node, Edge } from 'reactflow';
 import type { DomainCluster } from '../types';
+import { forceSimulation, forceRadial, forceCollide } from 'd3-force';
 
 export type NodeData = {
   domain: string;
@@ -21,6 +22,7 @@ export type NodeData = {
   isUnsecured: boolean;
   hasErrors: boolean;
   isHub: boolean;
+  isTracker: boolean;
 };
 
 const HUB_ID = '__hub__';
@@ -36,6 +38,15 @@ export function latencyTier(ms: number): 'fast' | 'moderate' | 'slow' {
 }
 
 /**
+ * Phase 1: Categorize incoming node data for orbital solar system layout.
+ * First-party/Safe domains -> Target Radius: 200px
+ * Trackers/Third-party -> Target Radius: 350px
+ */
+export function getTargetRadius(isTracker: boolean): number {
+  return isTracker ? 350 : 200;
+}
+
+/**
  * Determines the visual radius of a node based on request volume.
  * Clamped between 28px (single request) and 64px (high-volume domain).
  */
@@ -44,25 +55,39 @@ export function nodeRadius(count: number): number {
 }
 
 /**
- * Lays out nodes in a spoke-and-hub (radial) pattern around the hub centroid.
- * Radius of the outer ring scales with number of nodes to prevent overlap.
+ * Phase 2: D3 Physics Engine Setup
+ * Simulates an orbital solar system with non-overlapping constraints and strict radial tracks.
  */
-function radialLayout(
+function orbitalPhysicsLayout(
   domains: DomainCluster[],
   cx: number,
   cy: number
 ): { id: string; x: number; y: number }[] {
-  const count = domains.length;
-  const ringRadius = Math.max(130, count * 28);
+  // Map our domain data into D3 physics nodes
+  const nodes = domains.map((d) => ({
+    id: d.domain,
+    radius: nodeRadius(d.requestCount),
+    targetRadius: getTargetRadius(d.isTracker),
+    x: cx + (Math.random() - 0.5) * 10,
+    y: cy + (Math.random() - 0.5) * 10,
+  }));
 
-  return domains.map((d, i) => {
-    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
-    return {
-      id: d.domain,
-      x: cx + ringRadius * Math.cos(angle),
-      y: cy + ringRadius * Math.sin(angle),
-    };
-  });
+  // Initialize simulation and apply strict Radial and Collision forces
+  const simulation = forceSimulation(nodes)
+    .force('radial', forceRadial((d: any) => d.targetRadius, cx, cy).strength(0.8))
+    .force('collide', forceCollide((d: any) => d.radius + 15).iterations(2)) // Minimum 15px whitespace
+    .stop();
+
+  // Run the simulation synchronously to calculate end coordinates
+  for (let i = 0; i < 300; ++i) {
+    simulation.tick();
+  }
+
+  return nodes.map((n) => ({
+    id: n.id,
+    x: n.x!,
+    y: n.y!,
+  }));
 }
 
 /**
@@ -79,9 +104,10 @@ export function buildGraphElements(
     return { nodes: [], edges: [] };
   }
 
-  const cx = canvasWidth / 2;
+  // Crucial: Set centerX to window.innerWidth * 0.65
+  const cx = typeof window !== 'undefined' ? window.innerWidth * 0.65 : canvasWidth / 2;
   const cy = canvasHeight / 2;
-  const positions = radialLayout(domains, cx, cy);
+  const positions = orbitalPhysicsLayout(domains, cx, cy);
 
   // Hub node — represents the monitored page origin
   const hubNode: Node<NodeData> = {
@@ -95,6 +121,7 @@ export function buildGraphElements(
       isUnsecured: false,
       hasErrors: false,
       isHub: true,
+      isTracker: false,
     },
     // Hub is not draggable to maintain layout anchor
     draggable: false,
@@ -113,6 +140,7 @@ export function buildGraphElements(
         isUnsecured: cluster.isUnsecured,
         hasErrors: cluster.errors > 0,
         isHub: false,
+        isTracker: cluster.isTracker,
       },
     };
   });
@@ -122,14 +150,14 @@ export function buildGraphElements(
     id: `${HUB_ID}-${cluster.domain}`,
     source: HUB_ID,
     target: cluster.domain,
-    type: 'smoothstep',
+    type: 'liquid',
     animated: cluster.avgLatency < 200,
+    data: {
+      isSlow: cluster.avgLatency > 800,
+      isUnsecured: cluster.isUnsecured,
+    },
     style: {
-      stroke: cluster.isUnsecured || cluster.errors > 0
-        ? 'rgba(0,0,0,0.6)'   // darkened edge for problem nodes
-        : 'rgba(0,0,0,0.15)', // faint edge for healthy nodes
       strokeWidth: Math.max(1, Math.min(cluster.requestCount / 10, 3)),
-      strokeDasharray: cluster.isUnsecured ? '4 3' : undefined,
     },
   }));
 

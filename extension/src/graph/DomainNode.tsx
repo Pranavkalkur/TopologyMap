@@ -23,7 +23,7 @@ const DomainNode = memo(({ data, selected }: NodeProps<NodeData>) => {
   const radius    = nodeRadius(data.requestCount);
   const tier      = latencyTier(data.avgLatency);
   const size      = radius * 2;
-  const isProblem = data.hasErrors || data.isUnsecured;
+  const isProblem = data.hasErrors || data.isUnsecured || data.isTracker;
 
   // ── Background ───────────────────────────────────────
   const bg = data.isHub
@@ -35,8 +35,10 @@ const DomainNode = memo(({ data, selected }: NodeProps<NodeData>) => {
   // ── Border ────────────────────────────────────────────
   const border = data.isHub
     ? 'none'
-    : isProblem
-      ? '1.5px solid rgba(0,0,0,0.55)'
+    : data.isTracker
+      ? '1.5px solid rgba(234, 88, 12, 0.85)' // Warning Orange
+      : isProblem
+      ? '1.5px solid rgba(239, 68, 68, 0.75)' // Critical Red
       : selected
         ? '1.5px solid rgba(0,0,0,0.35)'
         : '1px solid rgba(0,0,0,0.09)';
@@ -96,8 +98,8 @@ const DomainNode = memo(({ data, selected }: NodeProps<NodeData>) => {
           position: 'absolute',
           inset: -4,
           borderRadius: '50%',
-          border: '1px solid rgba(0,0,0,0.18)',
-          animation: 'nodeRing 2.8s ease-in-out infinite',
+          border: data.isTracker ? '2px dashed rgba(234, 88, 12, 0.55)' : '1.5px solid rgba(239, 68, 68, 0.5)',
+          animation: data.isTracker ? 'nodeRing 1.2s linear infinite' : 'nodeRing 2.8s ease-in-out infinite',
           pointerEvents: 'none',
         }} />
       )}
